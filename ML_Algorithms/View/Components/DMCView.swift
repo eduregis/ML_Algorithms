@@ -18,7 +18,6 @@ struct DMCView: View {
     @State var isTested: Bool = false
     
     @State var DMC_Centroids: [MapPoint] = [MapPoint(xPos: 0, yPos: 0, group: .red), MapPoint(xPos: 0, yPos: 0, group: .blue), MapPoint(xPos: 0, yPos: 0, group: .green)]
-    @State var DMC_Radius: [Int] = []
     @State var DMC_Result: MapPoint?
     @State var DMC_Test_Range: Int = 30
     @State var results: [Bool] = []
@@ -31,12 +30,14 @@ struct DMCView: View {
                     if let mapPointTest = mapPointTest {
                         if isTested {
                             ForEach(DMC_Centroids, id: \.self) { point in
-                                Path { path in
-                                    path.move(to: CGPoint(x: (2 * mapPointTest.xPos) + 3, y: (2 * mapPointTest.yPos) + 7))
-                                    path.addLine(to: CGPoint(x: (2 * point.xPos) + 3, y: (2 * point.yPos) + 7))
+                                ZStack {
+                                    Path { path in
+                                        path.move(to: CGPoint(x: (2 * mapPointTest.xPos) + 3, y: (2 * mapPointTest.yPos) + 7))
+                                        path.addLine(to: CGPoint(x: (2 * point.xPos) + 3, y: (2 * point.yPos) + 7))
+                                    }
+                                    .stroke(point.color, lineWidth: 2)
+                                    .opacity(DMC_Result != nil ? (DMC_Result?.group == point.group ? 1.0 : 0.3) : 0.3)
                                 }
-                                .stroke(point.color, lineWidth: 2)
-                                .opacity(DMC_Result != nil ? (DMC_Result?.group == point.group ? 1.0 : 0.3) : 0.3)
                             }
                         }
                     }
@@ -48,20 +49,21 @@ struct DMCView: View {
                             .offset(x: CGFloat(point.xPos) * 2, y: CGFloat(point.yPos) * 2)
                             .foregroundColor(point.color)
                     }
-                    ForEach(pointsToTest, id: \.self) { point in
-                        Text("x")
-                            .font(.system(size: 12))
-                            .offset(x: CGFloat(point.xPos) * 2, y: CGFloat(point.yPos) * 2)
-                            .foregroundColor(Color.orange)
-                    }
-                    ForEach(pointsTested, id: \.self) { point in
-                        Text("x")
-                            .font(.system(size: 12))
-                            .offset(x: CGFloat(point.xPos) * 2, y: CGFloat(point.yPos) * 2)
-                            .foregroundColor(Color.orange)
-                    }
-                    if let mapPointTest = mapPointTest {
-                        if isTrained {
+                    if isTrained {
+                        ForEach(pointsToTest, id: \.self) { point in
+                            Text("x")
+                                .font(.system(size: 12))
+                                .offset(x: CGFloat(point.xPos) * 2, y: CGFloat(point.yPos) * 2)
+                                .foregroundColor(Color.orange)
+                        }
+                        ForEach(pointsTested, id: \.self) { point in
+                            Text("x")
+                                .font(.system(size: 12))
+                                .offset(x: CGFloat(point.xPos) * 2, y: CGFloat(point.yPos) * 2)
+                                .foregroundColor(Color.orange)
+                        }
+
+                        if let mapPointTest = mapPointTest {
                             Text("x")
                                 .font(.system(size: 12))
                                 .offset(x: CGFloat(mapPointTest.xPos) * 2, y: CGFloat(mapPointTest.yPos) * 2)
@@ -69,6 +71,17 @@ struct DMCView: View {
                         }
                     }
                 }
+//                if isTested {
+//                    ZStack {
+//                        ForEach(DMC_Centroids, id: \.self) { point in
+//                            Circle()
+//                                .opacity(0.2)
+//                                .frame(width: 100, height: 100)
+//                                .offset(x: CGFloat(2 * point.xPos) - 50, y: CGFloat(2 * point.yPos) - 50)
+//                                .foregroundColor(point.color)
+//                        }
+//                    }
+//                }
             }
             .frame(width: 300, height: 320)
             .border(Color("Foreground"), width: 3)
@@ -135,6 +148,19 @@ struct DMCView: View {
         mapPointTest = pointsToTest.first!
         pointsToTest.remove(at: 0)
         
+        var newCentroids: [MapPoint] = []
+        for centroid in DMC_Centroids {
+            let filteredMapPoints = listOfMapPoints.filter { $0.group == centroid.group }
+            var xPos: CGFloat = 0
+            var yPos: CGFloat = 0
+            for mapPoint in filteredMapPoints {
+                xPos += CGFloat(mapPoint.xPos)
+                yPos += CGFloat(mapPoint.yPos)
+            }
+            newCentroids.append(MapPoint(xPos: Int(xPos/CGFloat(filteredMapPoints.count)), yPos: Int(yPos/CGFloat(filteredMapPoints.count)), group: centroid.group!))
+        }
+        DMC_Centroids = newCentroids
+        
         isTrained = true
     }
     
@@ -157,25 +183,6 @@ struct DMCView: View {
     
     func test() {
         if pointsToTest.count >= 0 {
-            DMC_Radius = []
-            var newCentroids: [MapPoint] = []
-            for centroid in DMC_Centroids {
-                let filteredMapPoints = listOfMapPoints.filter { $0.group == centroid.group }
-                var xPos: CGFloat = 0
-                var yPos: CGFloat = 0
-                var maxDistance: CGFloat = 0
-                for mapPoint in filteredMapPoints {
-                    let distance = CGPointDistance(from: CGPoint(x: mapPoint.xPos, y: mapPoint.yPos), to: CGPoint(x: mapPointTest.xPos, y: mapPointTest.yPos))
-                    if distance > maxDistance {
-                        maxDistance = distance
-                    }
-                    xPos += CGFloat(mapPoint.xPos)
-                    yPos += CGFloat(mapPoint.yPos)
-                }
-                newCentroids.append(MapPoint(xPos: Int(xPos/CGFloat(filteredMapPoints.count)), yPos: Int(yPos/CGFloat(filteredMapPoints.count)), group: centroid.group!))
-                DMC_Radius.append(Int(maxDistance))
-            }
-            DMC_Centroids = newCentroids
             var minDistance: CGFloat = 1000.0
             for centroid in DMC_Centroids {
                 let distance = CGPointDistance(from: CGPoint(x: centroid.xPos, y: centroid.yPos), to: CGPoint(x: mapPointTest.xPos, y: mapPointTest.yPos))
@@ -199,7 +206,6 @@ struct DMCView: View {
         pointsTested = []
         resultText = "  "
         results = []
-        DMC_Radius = []
         
         isTrained = false
         isTested = false
